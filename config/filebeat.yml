@@ -1,0 +1,16 @@
+filebeat.inputs:
+  - type: filestream
+    id: json_logs
+    paths:
+      - "/input-data/*.json" # مسیر داخل کانتینر
+    parsers:
+      - ndjson:
+          target: "" # هر خط یک JSON؛ فیلدها سطح اول می‌شوند
+    close.on_state_change:
+      rename: true # پس از خواندن، فایل به .closed تغییر نام می‌دهد
+
+# هر 30 ثانیه رجیستری را ذخیره کن (برای تست راحت‌تر)
+filebeat.registry.flush: 30s
+
+output.logstash:
+  hosts: ["logstash:5044"]

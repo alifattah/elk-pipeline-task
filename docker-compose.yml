@@ -1,0 +1,65 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION}
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION}
+    container_name: logstash
+    environment:
+      - ELASTIC_USERNAME=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - xpack.monitoring.elasticsearch.username=elastic
+      - xpack.monitoring.elasticsearch.password=${ELASTIC_PASSWORD}
+      - LS_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - ./config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./archive:/output-archive # مقصد آرشیو (RW)
+    ports:
+      - "5044:5044"
+    depends_on:
+      - elasticsearch
+
+  # filebeat:
+  #   image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION}
+  #   container_name: filebeat
+  #   user: root
+  #   volumes:
+  #     - ./config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+  #     - ./data:/input-data:ro                # منبع لاگ‌ها (RO)
+  #   depends_on:
+  #     - logstash
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION}
+    container_name: filebeat
+    user: root
+    command: ["--strict.perms=false", "-e"]
+    volumes:
+      - ./config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./data:/input-data:ro
+    depends_on:
+      - logstash
+
+volumes:
+  esdata:
